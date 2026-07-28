@@ -1,3 +1,9 @@
+const dns = require('dns');
+// Force Node.js to resolve IPv4 addresses first (fixes ENETUNREACH on Render.com)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const { Pool } = require('pg');
 const { initialLevels, initialQuestions } = require('./seedData');
 
