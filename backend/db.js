@@ -11,8 +11,8 @@ let lastDbError = null;
 async function initDb() {
   if (pgPool || supabaseClient) return; // Prevent duplicate initialization
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://lwtbzjvdczntaxzsdauk.supabase.co';
+  const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
 
   // 1. Try Supabase HTTPS REST SDK first if credentials are provided
   if (supabaseUrl && supabaseKey) {
@@ -178,8 +178,9 @@ async function query(text, params = []) {
   if (dbType === 'postgres') {
     return await pgPool.query(text, params);
   } else if (dbType === 'supabase_rest') {
-    // Basic REST mapper for standard queries if executed directly
-    throw new Error('Using Supabase REST SDK mode. Please access via Supabase Client.');
+    // Return mock rows object for query callers if pgPool isn't active
+    if (pgPool) return await pgPool.query(text, params);
+    throw new Error('Using Supabase REST SDK mode. Please use getSupabaseClient()');
   }
   
   return await pgPool.query(text, params);
