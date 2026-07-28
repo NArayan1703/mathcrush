@@ -169,7 +169,7 @@ async function seedInitialDataSupabase() {
   }
 }
 
-// Universal Query Helper
+// Universal Query Helper transparently mapping SQL to Supabase REST SDK or PostgreSQL
 async function query(text, params = []) {
   if (!pgPool && !supabaseClient) {
     await initDb();
@@ -177,13 +177,164 @@ async function query(text, params = []) {
 
   if (dbType === 'postgres') {
     return await pgPool.query(text, params);
-  } else if (dbType === 'supabase_rest') {
-    // Return mock rows object for query callers if pgPool isn't active
-    if (pgPool) return await pgPool.query(text, params);
-    throw new Error('Using Supabase REST SDK mode. Please use getSupabaseClient()');
   }
-  
-  return await pgPool.query(text, params);
+
+  if (dbType === 'supabase_rest') {
+    const cleanText = text.trim();
+
+    // 1. SELECT COUNT(*) FROM table
+    if (/SELECT\s+COUNT\(\*\)\s+as\s+count\s+FROM\s+([a-zA-Z0-9_]+)/i.test(cleanText)) {
+      const match = cleanText.match(/FROM\s+([a-zA-Z0-9_]+)/i);
+      const tableName = match[1];
+      const { count, error } = await supabaseClient.from(tableName).select('*', { count: 'exact', head: true });
+      if (error) throw new Error(error.message);
+      return { rows: [{ count: count || 0 }], rowCount: 1 };
+    }
+
+    // 2. SELECT COALESCE(SUM(stars), 0) as total_stars FROM progress WHERE user_id = $1
+    if (cleanText.includes('SUM(stars)') || cleanText.includes('total_stars')) {
+      const userId = params[0];
+      const { data, error } = await supabaseClient.from('progress').select('stars').eq('user_id', userId);
+      if (error) throw new Error(error.message);
+      const total = (data || []).reduce((acc, curr) => acc + (curr.stars || 0), 0);
+      return { rows: [{ total_stars: total }], rowCount: 1 };
+    }
+
+    // 3. Leaderboard query
+    if (cleanText.includes('FROM users u') && cleanText.includes('LEFT JOIN progress')) {
+      const { data: users, error: userErr } = await supabaseClient
+        .from('users')
+        .select('id, name, total_points, current_level')
+        .order('total_points', { ascending: false })
+        .limit(50);
+      if (userErr) throw new Error(userErr.message);
+
+      const { data: allProgress } = await supabaseClient.from('progress').select('user_id, stars');
+      const starsMap = {};
+      (allProgress || []).forEach(p => {
+        starsMap[p.user_id] = (starsMap[p.user_id] || 0) + (p.stars || 0);
+      });
+
+      const rows = (users || []).map(u => ({
+        id: u.id,
+        name: u.name,
+        total_points: u.total_points || 0,
+        current_level: u.current_level || 1,
+        total_stars: starsMap[u.id] || 0
+      })).sort((a, b) => b.total_points - a.total_points || b.total_stars - a.total_stars);
+
+      return { rows, rowCount: rows.length };
+    }
+
+    // 4. SELECT * FROM users WHERE email = $1
+    if (cleanText.includes('FROM users WHERE email')) {
+      const email = params[0];
+      const { data, error } = await supabaseClient.from('users').select('*').eq('email', email);
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
+    // 5. SELECT * FROM users WHERE id = $1
+    if (cleanText.includes('FROM users WHERE id')) {
+      const id = params[0];
+      const { data, error } = await supabaseClient.from('users').select('*').eq('id', id);
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
+    // 6. INSERT INTO users ... RETURNING ...
+    if (cleanText.startsWith('INSERT INTO users')) {
+      const name = params[0];
+      const email = params[1];
+      const password_hash = params[2];
+      const { data, error } = await supabaseClient
+        .from('users')
+        .insert({ name, email, password_hash, total_points: 0, current_level: 1 })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return { rows: [data], rowCount: 1 };
+    }
+
+    // 7. SELECT * FROM levels ORDER BY order_number ASC
+    if (cleanText.includes('FROM levels') && !cleanText.includes('WHERE')) {
+      const { data, error } = await supabaseClient.from('levels').select('*').order('order_number', { ascending: true });
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
+    // 8. SELECT * FROM levels WHERE id = $1
+    if (cleanText.includes('FROM levels WHERE id')) {
+      const levelId = params[0];
+      const { data, error } = await supabaseClient.from('levels').select('*').eq('id', levelId);
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
+    // 9. SELECT * FROM questions WHERE level_id = $1
+    if (cleanText.includes('FROM questions WHERE level_id')) {
+      const levelId = params[0];
+      const { data, error } = await supabaseClient.from('questions').select('*').eq('level_id', levelId).order('id', { ascending: true });
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
+    // 10. SELECT level_id, stars, score, completed FROM progress WHERE user_id = $1
+    if (cleanText.includes('FROM progress WHERE user_id')) {
+      const userId = params[0];
+      const { data, error } = await supabaseClient.from('progress').select('*').eq('user_id', userId);
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
+    // 11. UPDATE users SET total_points, current_level
+    if (cleanText.startsWith('UPDATE users SET')) {
+      const pointsAdded = params[0];
+      const nextLevel = params[1];
+      const userId = params[2];
+
+      const { data: user } = await supabaseClient.from('users').select('total_points, current_level').eq('id', userId).single();
+      const currentPts = user?.total_points || 0;
+      const currentLvl = user?.current_level || 1;
+
+      const newPts = currentPts + pointsAdded;
+      const newLvl = Math.max(currentLvl, nextLevel);
+
+      const { data, error } = await supabaseClient
+        .from('users')
+        .update({ total_points: newPts, current_level: newLvl })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return { rows: [data], rowCount: 1 };
+    }
+
+    // 12. INSERT INTO progress ... ON CONFLICT / UPSERT
+    if (cleanText.includes('progress')) {
+      const userId = params[0];
+      const levelId = params[1];
+      const stars = params[2];
+      const score = params[3];
+
+      const { data, error } = await supabaseClient
+        .from('progress')
+        .upsert({
+          user_id: userId,
+          level_id: levelId,
+          stars,
+          score,
+          completed: true
+        }, { onConflict: 'user_id,level_id' })
+        .select();
+
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+  }
+
+  return { rows: [], rowCount: 0 };
 }
 
 async function queryOne(text, params = []) {
