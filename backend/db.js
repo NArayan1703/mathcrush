@@ -16,6 +16,22 @@ async function initDb() {
 
   let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
   
+  // Auto-correct Supabase IPv6 direct host db.[id].supabase.co -> IPv4 Pooler host
+  if (connectionString.includes('.supabase.co')) {
+    const projectMatch = connectionString.match(/db\.([a-z0-9]+)\.supabase\.co/);
+    if (projectMatch && projectMatch[1]) {
+      const projectId = projectMatch[1];
+      console.log(`🔄 Auto-correcting IPv6 direct host db.${projectId}.supabase.co -> IPv4 Pooler aws-0-ap-south-1.pooler.supabase.com`);
+      connectionString = connectionString.replace(
+        `db.${projectId}.supabase.co`,
+        `aws-0-ap-south-1.pooler.supabase.com`
+      );
+      if (connectionString.includes('postgres://postgres:')) {
+        connectionString = connectionString.replace('postgres://postgres:', `postgres://postgres.${projectId}:`);
+      }
+    }
+  }
+
   // Auto-correct Supabase transaction pooler port 6543 -> session pooler port 5432 for pg compatibility
   if (connectionString.includes('pooler.supabase.com:6543')) {
     connectionString = connectionString.replace(':6543', ':5432');
