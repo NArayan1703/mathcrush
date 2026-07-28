@@ -1,9 +1,3 @@
-const dns = require('dns');
-// Force Node.js to resolve IPv4 addresses first (fixes ENETUNREACH on Render.com)
-if (dns.setDefaultResultOrder) {
-  dns.setDefaultResultOrder('ipv4first');
-}
-
 const { Pool } = require('pg');
 const { initialLevels, initialQuestions } = require('./seedData');
 
@@ -14,26 +8,7 @@ let lastDbError = null;
 async function initDb() {
   if (pgPool) return; // Prevent duplicate initialization
 
-  let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
-
-  // Auto-correct IPv6-only direct host db.[id].supabase.co -> IPv4 Pooler host aws-0-ap-south-1.pooler.supabase.com
-  if (connectionString.includes('.supabase.co')) {
-    const match = connectionString.match(/db\.([a-z0-9]+)\.supabase\.co/i);
-    if (match && match[1]) {
-      const projectId = match[1];
-      console.log(`🔄 Auto-correcting IPv6 host db.${projectId}.supabase.co -> IPv4 Pooler aws-0-ap-south-1.pooler.supabase.com`);
-      connectionString = connectionString.replace(`db.${projectId}.supabase.co`, `aws-0-ap-south-1.pooler.supabase.com`);
-      if (!connectionString.includes(`postgres.${projectId}`)) {
-        connectionString = connectionString.replace('://postgres:', `://postgres.${projectId}:`);
-      }
-    }
-  }
-
-  // Auto-correct Supabase transaction pooler port 6543 -> session pooler port 5432 for pg compatibility
-  if (connectionString.includes(':6543')) {
-    connectionString = connectionString.replace(':6543', ':5432');
-  }
-
+  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
   const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
   try {
