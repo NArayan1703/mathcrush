@@ -12,7 +12,7 @@ router.get('/', authenticateToken, async (req, res) => {
        FROM users u
        LEFT JOIN progress p ON u.id = p.user_id
        GROUP BY u.id, u.name, u.total_points, u.current_level
-       ORDER BY u.total_points DESC, total_stars DESC, u.id ASC
+       ORDER BY u.total_points DESC, COALESCE(SUM(p.stars), 0) DESC, u.id ASC
        LIMIT 50`
     );
 
@@ -29,7 +29,7 @@ router.get('/', authenticateToken, async (req, res) => {
     return res.json({ leaderboard });
   } catch (err) {
     console.error('Leaderboard Error:', err);
-    return res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    return res.status(500).json({ error: err.message || 'Failed to fetch leaderboard' });
   }
 });
 
