@@ -3,12 +3,13 @@ const router = express.Router();
 const { query, queryOne } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 
-// Helper to calculate star rating based on accuracy percentage
+// Helper to calculate star rating based on accuracy percentage:
+// 100% = 3 Stars, 80%+ = 2 Stars, 60%+ = 1 Star, <60% = 0 Stars
 function calculateStars(correctCount, totalQuestions) {
   const percentage = (correctCount / totalQuestions) * 100;
-  if (percentage >= 90) return 3;
-  if (percentage >= 70) return 2;
-  if (percentage >= 50) return 1;
+  if (percentage >= 100) return 3;
+  if (percentage >= 80) return 2;
+  if (percentage >= 60) return 1;
   return 0;
 }
 
