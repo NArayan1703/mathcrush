@@ -26,8 +26,8 @@ async function initDb() {
         `db.${projectId}.supabase.co`,
         `aws-0-ap-south-1.pooler.supabase.com`
       );
-      if (connectionString.includes('postgres://postgres:')) {
-        connectionString = connectionString.replace('postgres://postgres:', `postgres://postgres.${projectId}:`);
+      if (connectionString.includes('://postgres:')) {
+        connectionString = connectionString.replace('://postgres:', `://postgres.${projectId}:`);
       }
     }
   }
@@ -38,37 +38,11 @@ async function initDb() {
   }
 
   const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
-  let originalHost = null;
-
-  // Resolve hostname to IPv4 address directly for Render.com IPv6 compatibility
-  if (!isLocal) {
-    try {
-      const parsedUrl = new URL(connectionString);
-      if (parsedUrl.hostname && !parsedUrl.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-        originalHost = parsedUrl.hostname;
-        const resolved = await dns.promises.lookup(originalHost, { family: 4 });
-        if (resolved && resolved.address) {
-          parsedUrl.hostname = resolved.address;
-          connectionString = parsedUrl.toString();
-          console.log(`📡 Resolved ${originalHost} -> IPv4 ${resolved.address}`);
-        }
-      }
-    } catch (dnsErr) {
-      console.warn('DNS lookup fallback warning:', dnsErr.message);
-    }
-  }
 
   try {
-    const sslConfig = isLocal
-      ? false
-      : {
-          rejectUnauthorized: false,
-          servername: originalHost || undefined
-        };
-
     const pool = new Pool({
       connectionString,
-      ssl: sslConfig,
+      ssl: isLocal ? false : { rejectUnauthorized: false },
       connectionTimeoutMillis: 10000,
       max: 10
     });
