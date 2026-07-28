@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Gamepad2, CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { Gamepad2, ArrowRight, X } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const { isAuthenticated, login, register } = useAuth();
@@ -124,56 +124,23 @@ export const LandingPage: React.FC = () => {
           </button>
         </motion.div>
 
-        {/* Hero Preview Card Graphic */}
+        {/* Hero Banner Showcase Image */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mt-16 max-w-4xl mx-auto candy-card-solid p-6 md:p-8 relative"
+          className="mt-14 max-w-5xl mx-auto candy-card-solid p-4 md:p-6 relative overflow-hidden group shadow-2xl border-4 border-pink-400/80"
         >
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-pink-400/30 pb-4 mb-6">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">🍬</span>
+          <div className="relative rounded-2xl overflow-hidden border-2 border-purple-400/40">
+            <img
+              src="/hero-banner.jpg"
+              alt="Math Crush Candy Game World"
+              className="w-full h-auto object-cover rounded-xl transform group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-6">
               <div className="text-left">
-                <h3 className="font-black text-xl text-amber-300">Level 1: Fraction Basics</h3>
-                <p className="text-xs text-purple-200 font-bold">Grade 6 • 10 Questions</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-amber-300 font-black text-lg bg-purple-950/60 px-4 py-1.5 rounded-full border border-amber-400/40">
-              <Star className="w-5 h-5 fill-amber-400" />
-              <Star className="w-5 h-5 fill-amber-400" />
-              <Star className="w-5 h-5 fill-amber-400" />
-              <span className="ml-2 text-white">3 / 3 Stars</span>
-            </div>
-          </div>
-
-          <div className="bg-slate-950/60 rounded-2xl p-6 border border-purple-500/40 text-left">
-            <div className="flex items-center justify-between mb-3 text-xs text-pink-300 font-bold">
-              <span>QUESTION 3 OF 10</span>
-              <span className="text-amber-400">+10 PTS PER CORRECT ANSWER</span>
-            </div>
-            <h4 className="text-xl md:text-2xl font-black text-white mb-6">
-              What is <span className="text-amber-300 underline">1/2 + 1/4</span>?
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-xl bg-purple-900/40 border border-purple-500/30 text-purple-200 font-bold flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-purple-800 flex items-center justify-center text-xs font-black">A</span>
-                1/2
-              </div>
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 border-2 border-green-300 text-white font-black flex items-center justify-between shadow-lg">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-emerald-800 flex items-center justify-center text-xs font-black">B</span>
-                  3/4
-                </div>
-                <CheckCircle2 className="w-5 h-5 text-white fill-emerald-800" />
-              </div>
-              <div className="p-3.5 rounded-xl bg-purple-900/40 border border-purple-500/30 text-purple-200 font-bold flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-purple-800 flex items-center justify-center text-xs font-black">C</span>
-                2/4
-              </div>
-              <div className="p-3.5 rounded-xl bg-purple-900/40 border border-purple-500/30 text-purple-200 font-bold flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-purple-800 flex items-center justify-center text-xs font-black">D</span>
-                1/8
+                <span className="px-3 py-1 bg-amber-400 text-slate-950 font-black text-xs rounded-full uppercase">Interactive Gameplay Preview</span>
+                <h3 className="text-2xl md:text-3xl font-black text-white mt-1 drop-shadow-md">Candy Map • Star Rewards • Math Arena</h3>
               </div>
             </div>
           </div>
