@@ -2,19 +2,27 @@ const { Pool } = require('pg');
 const { initialLevels, initialQuestions } = require('./seedData');
 
 let pgPool = null;
+let lastDbError = null;
 
 // Initialize PostgreSQL Connection
 async function initDb() {
   if (pgPool) return; // Prevent duplicate initialization
 
-  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
+  let connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
+  
+  // Auto-correct Supabase transaction pooler port 6543 -> session pooler port 5432 for pg compatibility
+  if (connectionString.includes('pooler.supabase.com:6543')) {
+    connectionString = connectionString.replace(':6543', ':5432');
+  }
+
   const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
   try {
     const pool = new Pool({
       connectionString,
       ssl: isLocal ? false : { rejectUnauthorized: false },
-      connectionTimeoutMillis: 10000
+      connectionTimeoutMillis: 10000,
+      max: 10
     });
     
     // Test connection
@@ -22,10 +30,12 @@ async function initDb() {
     client.release();
     
     pgPool = pool;
+    lastDbError = null;
     console.log('⚡ Connected to PostgreSQL database successfully.');
     await setupPostgresTables();
     await seedInitialData();
   } catch (err) {
+    lastDbError = err.message;
     console.error('❌ PostgreSQL connection error:', err.message);
     throw err;
   }
@@ -119,5 +129,6 @@ module.exports = {
   initDb,
   query,
   queryOne,
-  getDbType: () => 'postgres'
+  getDbType: () => (pgPool ? 'postgres' : 'none'),
+  getLastDbError: () => lastDbError
 };
