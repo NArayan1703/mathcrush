@@ -1,45 +1,34 @@
 const { Pool } = require('pg');
-const Database = require('better-sqlite3');
-const path = require('path');
 const { initialLevels, initialQuestions } = require('./seedData');
 
-let dbType = 'sqlite'; // 'postgres' or 'sqlite'
 let pgPool = null;
-let sqliteDb = null;
 
-// Initialize Database Connection
+// Initialize PostgreSQL Connection
 async function initDb() {
-  if (pgPool || sqliteDb) return; // Prevent duplicate initialization
+  if (pgPool) return; // Prevent duplicate initialization
 
   const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
   const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
   try {
-    // Attempt Postgres connection with SSL support for Supabase/Neon
-    const testPool = new Pool({
+    const pool = new Pool({
       connectionString,
       ssl: isLocal ? false : { rejectUnauthorized: false },
-      connectionTimeoutMillis: 5000
+      connectionTimeoutMillis: 10000
     });
     
-    // Quick test query
-    const client = await testPool.connect();
+    // Test connection
+    const client = await pool.connect();
     client.release();
     
-    pgPool = testPool;
-    dbType = 'postgres';
+    pgPool = pool;
     console.log('⚡ Connected to PostgreSQL database successfully.');
     await setupPostgresTables();
+    await seedInitialData();
   } catch (err) {
-    console.log('ℹ️ PostgreSQL not connected (' + err.message + '), falling back to SQLite adapter.');
-    dbType = 'sqlite';
-    // Use /tmp directory on Vercel read-only serverless environment
-    const dbPath = process.env.VERCEL ? '/tmp/mathcrush.db' : path.join(__dirname, 'mathcrush.db');
-    sqliteDb = new Database(dbPath);
-    setupSqliteTables();
+    console.error('❌ PostgreSQL connection error:', err.message);
+    throw err;
   }
-
-  await seedInitialData();
 }
 
 // PostgreSQL Setup
@@ -88,52 +77,6 @@ async function setupPostgresTables() {
   `);
 }
 
-// SQLite Setup
-function setupSqliteTables() {
-  sqliteDb.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      total_points INTEGER DEFAULT 0,
-      current_level INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS levels (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      topic TEXT NOT NULL,
-      difficulty TEXT NOT NULL,
-      order_number INTEGER UNIQUE NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS questions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      level_id INTEGER REFERENCES levels(id) ON DELETE CASCADE,
-      question_text TEXT NOT NULL,
-      option_a TEXT NOT NULL,
-      option_b TEXT NOT NULL,
-      option_c TEXT NOT NULL,
-      option_d TEXT NOT NULL,
-      correct_answer TEXT NOT NULL,
-      explanation TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS progress (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      level_id INTEGER REFERENCES levels(id) ON DELETE CASCADE,
-      stars INTEGER DEFAULT 0,
-      score INTEGER DEFAULT 0,
-      completed INTEGER DEFAULT 0,
-      completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(user_id, level_id)
-    );
-  `);
-}
-
 // Seed Initial Data if empty
 async function seedInitialData() {
   const levelsCount = await queryOne('SELECT COUNT(*) as count FROM levels');
@@ -159,46 +102,12 @@ async function seedInitialData() {
   }
 }
 
-// Universal Query Helper
+// PostgreSQL Query Helper
 async function query(text, params = []) {
-  if (dbType === 'postgres') {
-    const result = await pgPool.query(text, params);
-    return result;
-  } else {
-    // Convert $1, $2, $3... to ? for better-sqlite3
-    let sql = text.replace(/\$(\d+)/g, '?');
-    
-    let isInsertReturning = false;
-    if (/RETURNING\s+/i.test(sql)) {
-      isInsertReturning = true;
-      sql = sql.replace(/RETURNING\s+.*$/i, '');
-    }
-
-    const stmt = sqliteDb.prepare(sql);
-    let rows = [];
-
-    if (sql.trim().toUpperCase().startsWith('SELECT')) {
-      rows = stmt.all(...params);
-    } else {
-      const info = stmt.run(...params);
-      if (isInsertReturning) {
-        // Fetch inserted row by lastInsertRowid
-        const tableMatch = sql.match(/INSERT\s+INTO\s+([a-zA-Z0-9_]+)/i);
-        if (tableMatch && tableMatch[1]) {
-          const insertedRow = sqliteDb.prepare(`SELECT * FROM ${tableMatch[1]} WHERE id = ?`).get(info.lastInsertRowid);
-          if (insertedRow) {
-            rows = [insertedRow];
-          } else {
-            rows = [{ id: info.lastInsertRowid }];
-          }
-        } else {
-          rows = [{ id: info.lastInsertRowid }];
-        }
-      }
-    }
-
-    return { rows, rowCount: rows.length };
+  if (!pgPool) {
+    await initDb();
   }
+  return await pgPool.query(text, params);
 }
 
 async function queryOne(text, params = []) {
@@ -210,5 +119,5 @@ module.exports = {
   initDb,
   query,
   queryOne,
-  getDbType: () => dbType
+  getDbType: () => 'postgres'
 };
