@@ -209,5 +209,6 @@ async function queryOne(text, params = []) {
 module.exports = {
   initDb,
   query,
-  queryOne
+  queryOne,
+  getDbType: () => dbType
 };

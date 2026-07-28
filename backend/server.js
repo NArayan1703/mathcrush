@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const { initDb } = require('./db');
+const { initDb, getDbType } = require('./db');
 
 const authRoutes = require('./routes/auth');
 const levelsRoutes = require('./routes/levels');
@@ -25,9 +25,15 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Health Check
+// Health Check with DB diagnostics
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', app: 'Math Crush API', time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    app: 'Math Crush API',
+    database_type: getDbType(),
+    has_database_url: Boolean(process.env.DATABASE_URL),
+    time: new Date().toISOString()
+  });
 });
 
 // API Routes
