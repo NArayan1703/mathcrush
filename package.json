@@ -12,6 +12,7 @@
     "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.111.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

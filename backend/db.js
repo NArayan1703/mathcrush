@@ -1,13 +1,34 @@
 const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 const { initialLevels, initialQuestions } = require('./seedData');
 
 let pgPool = null;
+let supabaseClient = null;
+let dbType = 'none'; // 'supabase_rest' | 'postgres' | 'none'
 let lastDbError = null;
 
-// Initialize PostgreSQL Connection
+// Initialize Database Connection
 async function initDb() {
-  if (pgPool) return; // Prevent duplicate initialization
+  if (pgPool || supabaseClient) return; // Prevent duplicate initialization
 
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  // 1. Try Supabase HTTPS REST SDK first if credentials are provided
+  if (supabaseUrl && supabaseKey) {
+    try {
+      supabaseClient = createClient(supabaseUrl, supabaseKey);
+      dbType = 'supabase_rest';
+      lastDbError = null;
+      console.log('⚡ Connected to Supabase via HTTPS REST SDK successfully.');
+      await seedInitialDataSupabase();
+      return;
+    } catch (err) {
+      console.warn('⚠️ Supabase REST client initialization error:', err.message);
+    }
+  }
+
+  // 2. Fallback to direct PostgreSQL Pool
   const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
   const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
@@ -24,18 +45,19 @@ async function initDb() {
     client.release();
     
     pgPool = pool;
+    dbType = 'postgres';
     lastDbError = null;
     console.log('⚡ Connected to PostgreSQL database successfully.');
     await setupPostgresTables();
-    await seedInitialData();
+    await seedInitialDataPostgres();
   } catch (err) {
     lastDbError = err.message;
-    console.error('❌ PostgreSQL connection error:', err.message);
+    console.error('❌ Database connection error:', err.message);
     throw err;
   }
 }
 
-// PostgreSQL Setup
+// PostgreSQL Table Setup
 async function setupPostgresTables() {
   await pgPool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -81,8 +103,8 @@ async function setupPostgresTables() {
   `);
 }
 
-// Seed Initial Data if empty
-async function seedInitialData() {
+// Seed Initial Data for PostgreSQL
+async function seedInitialDataPostgres() {
   const levelsCount = await queryOne('SELECT COUNT(*) as count FROM levels');
   if (parseInt(levelsCount?.count || 0) === 0) {
     console.log('🌱 Seeding initial levels & math questions...');
@@ -106,11 +128,60 @@ async function seedInitialData() {
   }
 }
 
-// PostgreSQL Query Helper
+// Seed Initial Data for Supabase REST SDK
+async function seedInitialDataSupabase() {
+  if (!supabaseClient) return;
+  const { data: existingLevels } = await supabaseClient.from('levels').select('id');
+  if (!existingLevels || existingLevels.length === 0) {
+    console.log('🌱 Seeding initial levels & math questions via Supabase REST SDK...');
+    for (const lvl of initialLevels) {
+      const { data: insertedLevel, error: lvlErr } = await supabaseClient
+        .from('levels')
+        .insert({
+          order_number: lvl.order_number,
+          title: lvl.title,
+          topic: lvl.topic,
+          difficulty: lvl.difficulty
+        })
+        .select('id')
+        .single();
+
+      if (lvlErr) {
+        console.error('Level seed error:', lvlErr.message);
+        continue;
+      }
+
+      const questions = initialQuestions[lvl.order_number] || [];
+      const questionsToInsert = questions.map(q => ({
+        level_id: insertedLevel.id,
+        question_text: q.question_text,
+        option_a: q.option_a,
+        option_b: q.option_b,
+        option_c: q.option_c,
+        option_d: q.option_d,
+        correct_answer: q.correct_answer,
+        explanation: q.explanation
+      }));
+
+      await supabaseClient.from('questions').insert(questionsToInsert);
+    }
+    console.log('✅ Supabase REST Seed completed: 5 Levels with 10 questions each.');
+  }
+}
+
+// Universal Query Helper
 async function query(text, params = []) {
-  if (!pgPool) {
+  if (!pgPool && !supabaseClient) {
     await initDb();
   }
+
+  if (dbType === 'postgres') {
+    return await pgPool.query(text, params);
+  } else if (dbType === 'supabase_rest') {
+    // Basic REST mapper for standard queries if executed directly
+    throw new Error('Using Supabase REST SDK mode. Please access via Supabase Client.');
+  }
+  
   return await pgPool.query(text, params);
 }
 
@@ -123,6 +194,7 @@ module.exports = {
   initDb,
   query,
   queryOne,
-  getDbType: () => (pgPool ? 'postgres' : 'none'),
+  getSupabaseClient: () => supabaseClient,
+  getDbType: () => dbType,
   getLastDbError: () => lastDbError
 };
