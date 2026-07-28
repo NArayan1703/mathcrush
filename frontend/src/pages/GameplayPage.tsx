@@ -1,53 +1,55 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
-import { Star, CheckCircle2, XCircle, ArrowRight, RotateCcw, Map, Sparkles, HelpCircle } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { Level, Question } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, CheckCircle2, XCircle, ArrowRight, RotateCcw, Map, Star, HelpCircle } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export const GameplayPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { updateUserStats } = useAuth();
   const navigate = useNavigate();
+  const { updateUserStats } = useAuth();
 
   const [level, setLevel] = useState<Level | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
-  const [isAnswered, setIsAnswered] = useState<boolean>(false);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [score, setScore] = useState<number>(0);
-  const [correctCount, setCorrectCount] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Victory / Completion State
-  const [isGameOver, setIsGameOver] = useState<boolean>(false);
-  const [earnedStars, setEarnedStars] = useState<number>(0);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+
+  const [score, setScore] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [earnedStars, setEarnedStars] = useState(0);
   const [completionData, setCompletionData] = useState<any>(null);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const fetchQuestionData = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get(`/levels/${id}/questions`);
-        setLevel(res.data.level);
-        setQuestions(res.data.questions || []);
-      } catch (err) {
-        console.error('Failed to load level questions:', err);
-        navigate('/map');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuestionData();
-  }, [id, navigate]);
+    fetchLevelAndQuestions();
+  }, [id]);
+
+  const fetchLevelAndQuestions = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/levels/${id}/questions`);
+      setLevel(res.data.level);
+      setQuestions(res.data.questions);
+    } catch (err) {
+      console.error('Error fetching questions:', err);
+      navigate('/map');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const currentQuestion = questions[currentIndex];
 
-  const handleOptionClick = (optionKey: 'A' | 'B' | 'C' | 'D') => {
-    if (isAnswered || !currentQuestion) return;
+  const handleOptionSelect = (optionKey: string) => {
+    if (isAnswered) return;
 
     setSelectedOption(optionKey);
     setIsAnswered(true);
@@ -58,8 +60,8 @@ export const GameplayPage: React.FC = () => {
     if (correct) {
       setScore(prev => prev + 10);
       setCorrectCount(prev => prev + 1);
-      
-      // Trigger confetti celebration on correct answer
+
+      // Trigger micro confetti pop for correct answer
       confetti({
         particleCount: 40,
         spread: 60,
@@ -75,38 +77,46 @@ export const GameplayPage: React.FC = () => {
       setIsAnswered(false);
       setIsCorrect(null);
     } else {
-      // Finished all 10 questions -> calculate stars and submit progress!
       finishLevel();
     }
   };
 
   const finishLevel = async () => {
+    const totalQ = questions.length || 10;
+    const finalCorrect = isCorrect ? correctCount : correctCount;
+    const finalScore = score;
+    const pct = (finalCorrect / totalQ) * 100;
+
+    // Star threshold: 100% = 3 Stars, 80%+ = 2 Stars, 60%+ = 1 Star, <60% = 0 Stars
+    const localStars = pct >= 100 ? 3 : pct >= 80 ? 2 : pct >= 60 ? 1 : 0;
+
+    // Set stars immediately BEFORE showing modal so the modal never flashes 0 stars or failure!
+    setEarnedStars(localStars);
     setIsGameOver(true);
 
-    const totalQ = questions.length || 10;
-    const finalScore = score;
+    // Trigger grand victory confetti if passed with 1+ stars!
+    if (localStars > 0) {
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.5 }
+      });
+    }
 
     try {
       const res = await api.post('/progress/complete', {
         level_id: Number(id),
-        correct_count: correctCount,
+        correct_count: finalCorrect,
         total_questions: totalQ,
         score: finalScore
       });
 
       setCompletionData(res.data);
-      setEarnedStars(res.data.stars);
-
-      // Trigger grand victory confetti if passed with 1+ stars!
-      if (res.data.stars > 0) {
-        confetti({
-          particleCount: 150,
-          spread: 100,
-          origin: { y: 0.5 }
-        });
+      if (res.data.stars !== undefined) {
+        setEarnedStars(res.data.stars);
       }
 
-      // Update user auth state
+      // Update global user state (stars, total points, unlocked level)
       updateUserStats(res.data.total_points, res.data.current_level, res.data.total_stars);
     } catch (err) {
       console.error('Failed to submit progress:', err);
@@ -138,63 +148,65 @@ export const GameplayPage: React.FC = () => {
         <div className="flex items-center gap-3 bg-purple-950/80 border border-amber-400/50 rounded-2xl px-5 py-2.5 shadow-lg">
           <Sparkles className="w-5 h-5 text-amber-300 fill-amber-400 animate-pulse" />
           <div className="text-right">
-            <span className="block text-[10px] text-purple-300 font-bold uppercase">SCORE</span>
+            <span className="block text-[10px] text-purple-300 font-extrabold uppercase">SCORE</span>
             <span className="text-xl font-black text-amber-300">{score} PTS</span>
           </div>
         </div>
       </div>
 
-      {/* Question Progress Bar */}
-      <div className="mb-8 space-y-2">
-        <div className="flex justify-between text-xs font-bold text-purple-200">
-          <span>QUESTION {currentIndex + 1} OF {questions.length}</span>
-          <span>{correctCount} Correct</span>
+      {/* Progress Bar */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between text-xs font-bold text-purple-200 mb-2">
+          <span>Question {currentIndex + 1} of {questions.length}</span>
+          <span>{Math.round(((currentIndex + 1) / questions.length) * 100)}% Completed</span>
         </div>
         <div className="w-full h-3 bg-slate-900/80 rounded-full overflow-hidden border border-purple-500/30 p-0.5">
-          <div
-            className="h-full bg-gradient-to-r from-pink-500 to-amber-400 rounded-full transition-all duration-300"
-            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+            transition={{ duration: 0.4 }}
+            className="h-full bg-gradient-to-r from-pink-500 via-amber-400 to-emerald-400 rounded-full shadow-md"
           />
         </div>
       </div>
 
       {/* Question Card */}
-      {currentQuestion && !isGameOver && (
+      {currentQuestion && (
         <motion.div
-          key={currentQuestion.id}
+          key={currentIndex}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
-          className="candy-card-solid p-6 md:p-10 space-y-8 relative shadow-2xl border-4 border-pink-400/50"
+          className="candy-card-solid p-6 sm:p-10 relative overflow-hidden shadow-2xl border-2 border-purple-500/40"
         >
           {/* Question Text */}
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300 bg-purple-950/80 px-3 py-1 rounded-full border border-amber-400/30">
-              <HelpCircle className="w-4 h-4 text-amber-300" />
-              <span>Solve the equation</span>
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-300 bg-purple-950/80 px-3 py-1 rounded-full border border-amber-400/30 mb-3">
+              <HelpCircle className="w-4 h-4" />
+              <span>Solve the Challenge</span>
             </div>
-            <h3 className="text-2xl sm:text-4xl font-black text-white leading-snug">
+            <h3 className="text-xl sm:text-3xl font-black text-white leading-relaxed">
               {currentQuestion.question_text}
             </h3>
           </div>
 
-          {/* Multiple Choice Options Grid */}
+          {/* Options Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { key: 'A', text: currentQuestion.option_a },
               { key: 'B', text: currentQuestion.option_b },
               { key: 'C', text: currentQuestion.option_c },
               { key: 'D', text: currentQuestion.option_d }
-            ].map(({ key, text }) => {
-              const isSelected = selectedOption === key;
-              const isCorrectAnswer = key === currentQuestion.correct_answer;
+            ].map((opt) => {
+              const isSelected = selectedOption === opt.key;
+              const isCorrectOpt = opt.key === currentQuestion.correct_answer;
 
-              let btnStyle = "bg-slate-900/90 border-purple-500/50 text-white hover:border-amber-400 hover:bg-purple-900/60";
+              let btnStyle = "bg-slate-900/90 border-purple-500/40 text-purple-100 hover:border-amber-400 hover:bg-purple-900/50";
 
               if (isAnswered) {
-                if (isCorrectAnswer) {
-                  btnStyle = "bg-gradient-to-r from-emerald-600 to-green-500 border-2 border-green-300 text-white shadow-lg shadow-emerald-600/40";
-                } else if (isSelected && !isCorrectAnswer) {
+                if (isCorrectOpt) {
+                  btnStyle = "bg-gradient-to-r from-emerald-600 to-teal-600 border-2 border-emerald-300 text-white shadow-[0_0_20px_rgba(16,185,129,0.5)]";
+                } else if (isSelected && !isCorrect) {
                   btnStyle = "bg-gradient-to-r from-rose-700 to-red-600 border-2 border-red-300 text-white animate-shake";
                 } else {
                   btnStyle = "bg-slate-950/40 border-slate-800 text-slate-500 opacity-50";
@@ -203,68 +215,57 @@ export const GameplayPage: React.FC = () => {
 
               return (
                 <button
-                  key={key}
+                  key={opt.key}
                   disabled={isAnswered}
-                  onClick={() => handleOptionClick(key as any)}
-                  className={`p-4 md:p-5 rounded-2xl border-2 transition-all duration-200 text-left flex items-center justify-between font-extrabold text-lg md:text-xl shadow-md cursor-pointer ${btnStyle}`}
+                  onClick={() => handleOptionSelect(opt.key)}
+                  className={`p-5 rounded-2xl border-2 text-left font-extrabold transition-all duration-200 flex items-center justify-between text-lg shadow-md ${btnStyle}`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <span className="w-9 h-9 rounded-xl bg-purple-950 flex items-center justify-center text-amber-300 text-sm font-black border border-purple-700">
-                      {key}
+                      {opt.key}
                     </span>
-                    <span>{text}</span>
+                    <span>{opt.text}</span>
                   </div>
 
-                  {isAnswered && isCorrectAnswer && (
+                  {isAnswered && isCorrectOpt && (
                     <CheckCircle2 className="w-6 h-6 text-white fill-emerald-800" />
                   )}
-                  {isAnswered && isSelected && !isCorrectAnswer && (
-                    <XCircle className="w-6 h-6 text-white fill-rose-900" />
+                  {isAnswered && isSelected && !isCorrect && (
+                    <XCircle className="w-6 h-6 text-white fill-red-800" />
                   )}
                 </button>
               );
             })}
           </div>
 
-          {/* Answer Feedback Banner & Explanation */}
+          {/* Solution Explanation Box */}
           <AnimatePresence>
             {isAnswered && (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-5 rounded-2xl border-2 space-y-2 ${
-                  isCorrect
-                    ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200'
-                    : 'bg-rose-950/90 border-rose-500 text-rose-200'
-                }`}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-6 pt-6 border-t border-purple-800/60"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-black text-xl">
-                    {isCorrect ? (
-                      <>
-                        <span>SWEET! PERFECT ANSWER! 🍬</span>
-                        <span className="text-amber-300 text-sm bg-emerald-900 px-2.5 py-0.5 rounded-full border border-amber-300">+10 PTS</span>
-                      </>
-                    ) : (
-                      <span>OOPS! NOT QUITE RIGHT ❌</span>
-                    )}
+                <div className={`p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200' : 'bg-rose-950/60 border-rose-500/40 text-rose-200'}`}>
+                  <div className="flex items-center gap-2 font-black text-sm uppercase mb-1">
+                    {isCorrect ? '🎉 Correct Answer!' : '❌ Solution Explanation:'}
                   </div>
+                  <p className="text-sm font-semibold leading-relaxed">
+                    {currentQuestion.explanation}
+                  </p>
+                </div>
 
+                {/* Next Question Button */}
+                <div className="mt-6 text-right">
                   <button
                     onClick={handleNextQuestion}
-                    className="btn-candy-yellow px-6 py-2.5 rounded-xl text-base flex items-center gap-2"
+                    className="btn-candy-primary px-8 py-3.5 text-lg rounded-full inline-flex items-center gap-2 shadow-xl"
                   >
-                    <span>{currentIndex + 1 === questions.length ? 'FINISH LEVEL 🏆' : 'NEXT QUESTION'}</span>
+                    <span>{currentIndex + 1 < questions.length ? 'Next Question' : 'Complete Level 🏆'}</span>
                     <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
-
-                {/* Explanation text */}
-                {currentQuestion.explanation && (
-                  <p className="text-sm font-medium pt-1 border-t border-white/10 opacity-90">
-                    💡 <span className="font-bold">Explanation:</span> {currentQuestion.explanation}
-                  </p>
-                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -318,18 +319,16 @@ export const GameplayPage: React.FC = () => {
               </div>
 
               {/* Points Earned Details */}
-              {completionData && (
-                <div className="grid grid-cols-2 gap-3 text-center">
-                  <div className="p-3 bg-purple-950/70 rounded-xl border border-amber-400/30">
-                    <span className="block text-[10px] text-purple-300 font-extrabold uppercase">POINTS EARNED</span>
-                    <span className="text-2xl font-black text-amber-300">+{score} PTS</span>
-                  </div>
-                  <div className="p-3 bg-purple-950/70 rounded-xl border border-pink-400/30">
-                    <span className="block text-[10px] text-purple-300 font-extrabold uppercase">TOTAL SCORE</span>
-                    <span className="text-2xl font-black text-pink-300">{completionData.total_points} PTS</span>
-                  </div>
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="p-3 bg-purple-950/70 rounded-xl border border-amber-400/30">
+                  <span className="block text-[10px] text-purple-300 font-extrabold uppercase">POINTS EARNED</span>
+                  <span className="text-2xl font-black text-amber-300">+{score} PTS</span>
                 </div>
-              )}
+                <div className="p-3 bg-purple-950/70 rounded-xl border border-pink-400/30">
+                  <span className="block text-[10px] text-purple-300 font-extrabold uppercase">TOTAL SCORE</span>
+                  <span className="text-2xl font-black text-pink-300">{completionData ? completionData.total_points : score} PTS</span>
+                </div>
+              </div>
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -351,6 +350,8 @@ export const GameplayPage: React.FC = () => {
                     setIsCorrect(null);
                     setScore(0);
                     setCorrectCount(0);
+                    setEarnedStars(0);
+                    setCompletionData(null);
                   }}
                   className="flex-1 py-4 btn-candy-yellow text-lg rounded-xl font-black flex items-center justify-center gap-2"
                 >
