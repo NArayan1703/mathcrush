@@ -9,13 +9,17 @@ let sqliteDb = null;
 
 // Initialize Database Connection
 async function initDb() {
+  if (pgPool || sqliteDb) return; // Prevent duplicate initialization
+
   const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/mathcrush';
+  const isLocal = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
 
   try {
-    // Attempt Postgres connection
+    // Attempt Postgres connection with SSL support for Supabase/Neon
     const testPool = new Pool({
       connectionString,
-      connectionTimeoutMillis: 2000
+      ssl: isLocal ? false : { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000
     });
     
     // Quick test query
@@ -27,9 +31,10 @@ async function initDb() {
     console.log('⚡ Connected to PostgreSQL database successfully.');
     await setupPostgresTables();
   } catch (err) {
-    console.log('ℹ️ PostgreSQL not available, using embedded SQLite database for seamless demo setup.');
+    console.log('ℹ️ PostgreSQL not connected (' + err.message + '), falling back to SQLite adapter.');
     dbType = 'sqlite';
-    const dbPath = path.join(__dirname, 'mathcrush.db');
+    // Use /tmp directory on Vercel read-only serverless environment
+    const dbPath = process.env.VERCEL ? '/tmp/mathcrush.db' : path.join(__dirname, 'mathcrush.db');
     sqliteDb = new Database(dbPath);
     setupSqliteTables();
   }
@@ -132,7 +137,7 @@ function setupSqliteTables() {
 // Seed Initial Data if empty
 async function seedInitialData() {
   const levelsCount = await queryOne('SELECT COUNT(*) as count FROM levels');
-  if (parseInt(levelsCount.count) === 0) {
+  if (parseInt(levelsCount?.count || 0) === 0) {
     console.log('🌱 Seeding initial levels & math questions...');
     for (const lvl of initialLevels) {
       const res = await query(

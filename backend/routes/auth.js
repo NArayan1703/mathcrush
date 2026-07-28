@@ -54,7 +54,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Registration Error:', err);
-    return res.status(500).json({ error: 'Internal server error during registration' });
+    return res.status(500).json({ error: err.message || 'Internal server error during registration' });
   }
 });
 
@@ -103,7 +103,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login Error:', err);
-    return res.status(500).json({ error: 'Internal server error during login' });
+    return res.status(500).json({ error: err.message || 'Internal server error during login' });
   }
 });
 
@@ -132,7 +132,7 @@ router.get('/me', authenticateToken, async (req, res) => {
     });
   } catch (err) {
     console.error('Me Auth Error:', err);
-    return res.status(500).json({ error: 'Failed to fetch user data' });
+    return res.status(500).json({ error: err.message || 'Failed to fetch user data' });
   }
 });
 
