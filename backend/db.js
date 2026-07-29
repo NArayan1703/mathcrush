@@ -88,14 +88,7 @@ async function query(text, params = []) {
       return { rows: [data], rowCount: 1 };
     }
 
-    // 7. SELECT * FROM levels ORDER BY order_number ASC
-    if (lowerText.includes('from levels') && !lowerText.includes('where')) {
-      const { data, error } = await supabaseClient.from('levels').select('*').order('order_number', { ascending: true });
-      if (error) throw new Error(error.message);
-      return { rows: data || [], rowCount: (data || []).length };
-    }
-
-    // 8. SELECT * FROM levels WHERE order_number = $1 OR id = $1
+    // 7. SELECT * FROM levels WHERE order_number = $1 OR id = $1
     if (lowerText.includes('from levels') && lowerText.includes('order_number')) {
       const rawOrder = params[0];
       const orderNum = isNaN(Number(rawOrder)) ? rawOrder : Number(rawOrder);
@@ -111,6 +104,13 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
+    // 8. SELECT * FROM levels ORDER BY order_number ASC
+    if (lowerText.includes('from levels')) {
+      const { data, error } = await supabaseClient.from('levels').select('*').order('order_number', { ascending: true });
+      if (error) throw new Error(error.message);
+      return { rows: data || [], rowCount: (data || []).length };
+    }
+
     // 9. SELECT * FROM questions WHERE level_id = $1
     if (lowerText.includes('from questions') && lowerText.includes('level_id')) {
       const rawId = params[0];
@@ -121,7 +121,7 @@ async function query(text, params = []) {
     }
 
     // 10. SELECT * FROM progress WHERE user_id = $1 AND level_id = $2
-    if (lowerText.includes('from progress') && lowerText.includes('user_id') && lowerText.includes('level_id')) {
+    if (lowerText.includes('from progress') && lowerText.includes('where') && params.length >= 2) {
       const rawUserId = params[0];
       const rawLevelId = params[1];
       const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
@@ -131,30 +131,14 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 11. SELECT p.*, l.title... FROM progress p JOIN levels l ... WHERE p.user_id = $1
-    if (lowerText.includes('from progress') && lowerText.includes('user_id')) {
+    // 11. SELECT * FROM progress WHERE user_id = $1
+    if (lowerText.includes('from progress') && lowerText.includes('where') && params.length === 1) {
       const rawUserId = params[0];
       const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
       const { data: progressData, error: progErr } = await supabaseClient.from('progress').select('*').eq('user_id', userId);
       if (progErr) throw new Error(progErr.message);
 
-      const { data: levelsData, error: lvlErr } = await supabaseClient.from('levels').select('*');
-      if (lvlErr) throw new Error(lvlErr.message);
-
-      const levelMap = {};
-      (levelsData || []).forEach(l => { levelMap[l.id] = l; });
-
-      const rows = (progressData || []).map(p => {
-        const lvl = levelMap[p.level_id] || {};
-        return {
-          ...p,
-          title: lvl.title || '',
-          topic: lvl.topic || '',
-          order_number: lvl.order_number || 1
-        };
-      }).sort((a, b) => a.order_number - b.order_number);
-
-      return { rows, rowCount: rows.length };
+      return { rows: progressData || [], rowCount: (progressData || []).length };
     }
 
     // 12. UPDATE users SET current_level = $1 WHERE id = $2
