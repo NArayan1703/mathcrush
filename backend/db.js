@@ -181,6 +181,7 @@ async function query(text, params = []) {
 
   if (dbType === 'supabase_rest') {
     const cleanText = text.trim();
+    const lowerText = cleanText.toLowerCase();
 
     // 1. SELECT COUNT(*) FROM table
     if (/SELECT\s+COUNT\(\*\)\s+as\s+count\s+FROM\s+([a-zA-Z0-9_]+)/i.test(cleanText)) {
@@ -192,7 +193,7 @@ async function query(text, params = []) {
     }
 
     // 2. SELECT COALESCE(SUM(stars), 0) as total_stars FROM progress WHERE user_id = $1
-    if (cleanText.includes('SUM(stars)') || cleanText.includes('total_stars')) {
+    if (lowerText.includes('sum(stars)') || lowerText.includes('total_stars')) {
       const userId = params[0];
       const { data, error } = await supabaseClient.from('progress').select('stars').eq('user_id', userId);
       if (error) throw new Error(error.message);
@@ -201,7 +202,7 @@ async function query(text, params = []) {
     }
 
     // 3. Leaderboard query
-    if (cleanText.includes('FROM users u') && cleanText.includes('LEFT JOIN progress')) {
+    if (lowerText.includes('from users') && (lowerText.includes('join progress') || lowerText.includes('progress'))) {
       const { data: users, error: userErr } = await supabaseClient
         .from('users')
         .select('id, name, total_points, current_level')
@@ -227,7 +228,7 @@ async function query(text, params = []) {
     }
 
     // 4. SELECT * FROM users WHERE email = $1
-    if (cleanText.includes('FROM users WHERE email')) {
+    if (lowerText.includes('from users') && lowerText.includes('where email')) {
       const email = params[0];
       const { data, error } = await supabaseClient.from('users').select('*').eq('email', email);
       if (error) throw new Error(error.message);
@@ -235,7 +236,7 @@ async function query(text, params = []) {
     }
 
     // 5. SELECT * FROM users WHERE id = $1
-    if (cleanText.includes('FROM users WHERE id')) {
+    if (lowerText.includes('from users') && lowerText.includes('where id')) {
       const id = params[0];
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', id);
       if (error) throw new Error(error.message);
@@ -243,7 +244,7 @@ async function query(text, params = []) {
     }
 
     // 6. INSERT INTO users ... RETURNING ...
-    if (cleanText.startsWith('INSERT INTO users')) {
+    if (lowerText.startsWith('insert into users')) {
       const name = params[0];
       const email = params[1];
       const password_hash = params[2];
@@ -257,20 +258,20 @@ async function query(text, params = []) {
     }
 
     // 7. SELECT * FROM levels ORDER BY order_number ASC
-    if (cleanText.includes('FROM levels') && !cleanText.includes('WHERE')) {
+    if (lowerText.includes('from levels') && !lowerText.includes('where')) {
       const { data, error } = await supabaseClient.from('levels').select('*').order('order_number', { ascending: true });
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
     }
 
     // 8. SELECT * FROM levels WHERE id = $1 or order_number = $1
-    if (cleanText.includes('FROM levels WHERE order_number')) {
+    if (lowerText.includes('from levels') && lowerText.includes('order_number')) {
       const orderNum = params[0];
       const { data, error } = await supabaseClient.from('levels').select('*').eq('order_number', orderNum);
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
     }
-    if (cleanText.includes('FROM levels WHERE id')) {
+    if (lowerText.includes('from levels') && lowerText.includes('where id')) {
       const levelId = params[0];
       const { data, error } = await supabaseClient.from('levels').select('*').eq('id', levelId);
       if (error) throw new Error(error.message);
@@ -278,7 +279,7 @@ async function query(text, params = []) {
     }
 
     // 9. SELECT * FROM questions WHERE level_id = $1
-    if (cleanText.includes('FROM questions WHERE level_id')) {
+    if (lowerText.includes('from questions') && lowerText.includes('level_id')) {
       const levelId = params[0];
       const { data, error } = await supabaseClient.from('questions').select('*').eq('level_id', levelId).order('id', { ascending: true });
       if (error) throw new Error(error.message);
@@ -286,7 +287,7 @@ async function query(text, params = []) {
     }
 
     // 10. SELECT * FROM progress WHERE user_id = $1 AND level_id = $2
-    if (cleanText.includes('FROM progress WHERE user_id = $1 AND level_id = $2')) {
+    if (lowerText.includes('from progress') && lowerText.includes('user_id') && lowerText.includes('level_id')) {
       const userId = params[0];
       const levelId = params[1];
       const { data, error } = await supabaseClient.from('progress').select('*').eq('user_id', userId).eq('level_id', levelId);
@@ -295,7 +296,7 @@ async function query(text, params = []) {
     }
 
     // 11. SELECT * FROM progress WHERE user_id = $1
-    if (cleanText.includes('FROM progress WHERE user_id = $1')) {
+    if (lowerText.includes('from progress') && lowerText.includes('user_id')) {
       const userId = params[0];
       const { data, error } = await supabaseClient.from('progress').select('*').eq('user_id', userId);
       if (error) throw new Error(error.message);
@@ -303,7 +304,7 @@ async function query(text, params = []) {
     }
 
     // 12. UPDATE users SET current_level = $1 WHERE id = $2
-    if (cleanText.includes('SET current_level')) {
+    if (lowerText.includes('set current_level')) {
       const nextLevel = params[0];
       const userId = params[1];
       const { data, error } = await supabaseClient
@@ -316,7 +317,7 @@ async function query(text, params = []) {
     }
 
     // 13. UPDATE users SET total_points = total_points + $1 WHERE id = $2
-    if (cleanText.includes('SET total_points')) {
+    if (lowerText.includes('set total_points')) {
       const pointGain = params[0];
       const userId = params[1];
       const { data: user } = await supabaseClient.from('users').select('total_points').eq('id', userId).single();
@@ -331,7 +332,7 @@ async function query(text, params = []) {
     }
 
     // 14. UPDATE progress SET stars = $1, score = $2, completed = $3... WHERE user_id = $4 AND level_id = $5
-    if (cleanText.includes('UPDATE progress')) {
+    if (lowerText.includes('update progress')) {
       const newStars = params[0];
       const newScore = params[1];
       const newCompleted = Boolean(params[2]);
@@ -348,7 +349,7 @@ async function query(text, params = []) {
     }
 
     // 15. INSERT INTO progress (user_id, level_id, stars, score, completed)
-    if (cleanText.includes('INSERT INTO progress')) {
+    if (lowerText.includes('insert into progress')) {
       const userId = params[0];
       const levelId = params[1];
       const stars = params[2];
