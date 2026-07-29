@@ -31,7 +31,7 @@ export const Footer: React.FC = () => {
           <ul className="space-y-2 text-sm font-bold">
             <li>
               <Link to="/map" className="hover:text-amber-300 transition-colors">
-                Level Map 🍬
+                Play 🍬
               </Link>
             </li>
             <li>
@@ -41,7 +41,7 @@ export const Footer: React.FC = () => {
             </li>
             <li>
               <Link to="/dashboard" className="hover:text-amber-300 transition-colors">
-                Student Dashboard 🎮
+                Dashboard 🎮
               </Link>
             </li>
           </ul>
@@ -68,9 +68,6 @@ export const Footer: React.FC = () => {
                 Terms of Service
               </button>
             </li>
-            <li>
-              <span className="text-xs text-purple-400 font-medium">COPPA Compliant Student Protection</span>
-            </li>
           </ul>
         </div>
 
@@ -78,7 +75,7 @@ export const Footer: React.FC = () => {
 
       {/* Bottom Copyright Bar */}
       <div className="max-w-7xl mx-auto pt-6 border-t border-purple-900/40 flex flex-col sm:flex-row items-center justify-between text-xs text-purple-400 font-medium gap-3">
-        <p>© 2026 Math Crush. Built with ❤️ for Hackathon Math Champions.</p>
+        <p>© Math Crush</p>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowPrivacyModal(true)}
@@ -98,7 +95,7 @@ export const Footer: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: 0.9, y: 0 }}
               className="w-full max-w-2xl candy-card-solid p-6 md:p-8 relative max-h-[85vh] overflow-y-auto border-4 border-pink-400/60 shadow-2xl space-y-6"
             >
               {/* Close Button */}

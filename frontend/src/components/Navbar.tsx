@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Trophy, Map, LayoutDashboard, LogOut, Sparkles, Star } from 'lucide-react';
+import { Trophy, Play, LayoutDashboard, LogOut, Sparkles, Star } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -21,7 +21,7 @@ export const Navbar: React.FC = () => {
         
         {/* Brand Logo */}
         <Link to={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2 sm:gap-3 group shrink-0">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-pink-500 via-purple-500 to-amber-400 p-0.5 shadow-lg group-hover:scale-105 transition-transform duration-200">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-pink-500 via-purple-500 to-amber-400 p-0.5 shadow-lg group-hover:scale-105 transition-transform duration-200">
             <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center text-xl sm:text-2xl">
               🍬
             </div>
@@ -29,9 +29,6 @@ export const Navbar: React.FC = () => {
           <div>
             <span className="text-xl sm:text-2xl font-black tracking-wider bg-gradient-to-r from-pink-400 via-amber-300 to-purple-400 bg-clip-text text-transparent drop-shadow-md">
               MATH CRUSH
-            </span>
-            <span className="hidden xs:block text-[9px] sm:text-[10px] uppercase tracking-widest text-pink-300 font-bold -mt-1">
-              Math Learning Platform
             </span>
           </div>
         </Link>
@@ -65,42 +62,42 @@ export const Navbar: React.FC = () => {
               </div>
             </div>
 
-            {/* Navigation Links */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            {/* Navigation Links: Dashboard, Play, Leaderboard */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Link
                 to="/dashboard"
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   isActive('/dashboard')
                     ? 'bg-pink-600 text-white shadow-lg shadow-pink-600/40'
                     : 'text-purple-200 hover:bg-purple-900/50 hover:text-white'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden sm:inline">Dashboard</span>
+                <span>Dashboard</span>
               </Link>
 
               <Link
                 to="/map"
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   isActive('/map')
                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/40'
                     : 'text-purple-200 hover:bg-purple-900/50 hover:text-white'
                 }`}
               >
-                <Map className="w-4 h-4 text-amber-400" />
-                <span className="hidden xs:inline">Map</span>
+                <Play className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <span>Play</span>
               </Link>
 
               <Link
                 to="/leaderboard"
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                   isActive('/leaderboard')
                     ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40'
                     : 'text-purple-200 hover:bg-purple-900/50 hover:text-white'
                 }`}
               >
                 <Trophy className="w-4 h-4 text-amber-300" />
-                <span className="hidden sm:inline">Ranks</span>
+                <span>Leaderboard</span>
               </Link>
 
               {/* User Avatar & Logout */}
