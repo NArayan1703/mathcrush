@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { Level, Question } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, CheckCircle2, XCircle, ArrowRight, RotateCcw, Map, Star, HelpCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2, XCircle, ArrowRight, RotateCcw, Star, HelpCircle, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const GameplayPage: React.FC = () => {
@@ -35,9 +35,28 @@ export const GameplayPage: React.FC = () => {
   const fetchLevelAndQuestions = async () => {
     try {
       setLoading(true);
+      setIsGameOver(false);
+      setCurrentIndex(0);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setIsCorrect(null);
+      setScore(0);
+      setCorrectCount(0);
+      setEarnedStars(0);
+      setCompletionData(null);
+
       const res = await api.get(`/levels/${id}/questions`);
       setLevel(res.data.level);
-      setQuestions(res.data.questions);
+
+      // Deduplicate questions by question_text to ensure max 10 unique questions per level
+      const uniqueMap = new Map();
+      (res.data.questions || []).forEach((q: Question) => {
+        if (!uniqueMap.has(q.question_text)) {
+          uniqueMap.set(q.question_text, q);
+        }
+      });
+      const distinctQ = Array.from(uniqueMap.values()).slice(0, 10);
+      setQuestions(distinctQ);
     } catch (err) {
       console.error('Error fetching questions:', err);
       navigate('/map');
@@ -120,6 +139,15 @@ export const GameplayPage: React.FC = () => {
       updateUserStats(res.data.total_points, res.data.current_level, res.data.total_stars);
     } catch (err) {
       console.error('Failed to submit progress:', err);
+    }
+  };
+
+  const handleNextLevelClick = () => {
+    const nextLevelId = Number(id) + 1;
+    if (nextLevelId <= 5) {
+      navigate(`/game/${nextLevelId}`);
+    } else {
+      navigate('/map');
     }
   };
 
@@ -279,10 +307,20 @@ export const GameplayPage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-lg candy-card-solid p-8 text-center space-y-6 border-4 border-amber-400 shadow-2xl"
+              className="w-full max-w-lg candy-card-solid p-8 text-center space-y-6 border-4 border-amber-400 shadow-2xl relative"
             >
+              {/* Go Back Arrow Button in Top Left Container */}
+              <button
+                onClick={() => navigate('/map')}
+                className="absolute top-4 left-4 p-2 text-purple-200 hover:text-white hover:bg-purple-900/60 rounded-xl transition-all flex items-center gap-1 font-extrabold text-xs border border-purple-500/30 shadow-md cursor-pointer"
+                title="Go Back to Level Map"
+              >
+                <ArrowLeft className="w-4 h-4 text-amber-400" />
+                <span>Go Back</span>
+              </button>
+
               {/* Header Icon */}
-              <div className="text-6xl animate-bounce">
+              <div className="text-6xl animate-bounce pt-4 sm:pt-0">
                 {earnedStars > 0 ? '🏆' : '💔'}
               </div>
 
@@ -330,19 +368,11 @@ export const GameplayPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* CTAs */}
+              {/* Action Buttons: Retry & Next Level */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
-                  onClick={() => navigate('/map')}
-                  className="flex-1 py-4 btn-candy-blue text-lg rounded-xl font-black flex items-center justify-center gap-2"
-                >
-                  <Map className="w-5 h-5" />
-                  <span>LEVEL MAP</span>
-                </button>
-
-                <button
                   onClick={() => {
-                    // Reset game state to replay level
+                    // Reset game state to retry current level
                     setIsGameOver(false);
                     setCurrentIndex(0);
                     setSelectedOption(null);
@@ -356,7 +386,15 @@ export const GameplayPage: React.FC = () => {
                   className="flex-1 py-4 btn-candy-yellow text-lg rounded-xl font-black flex items-center justify-center gap-2"
                 >
                   <RotateCcw className="w-5 h-5" />
-                  <span>REPLAY 🔄</span>
+                  <span>RETRY 🔄</span>
+                </button>
+
+                <button
+                  onClick={handleNextLevelClick}
+                  className="flex-1 py-4 btn-candy-primary text-lg rounded-xl font-black flex items-center justify-center gap-2 shadow-xl"
+                >
+                  <span>NEXT LEVEL</span>
+                  <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
 
