@@ -23,7 +23,8 @@ async function query(text, params = []) {
 
     // 2. SELECT COALESCE(SUM(stars), 0) as total_stars FROM progress WHERE user_id = $1
     if (lowerText.includes('sum(stars)') || lowerText.includes('total_stars')) {
-      const userId = params[0];
+      const rawUserId = params[0];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
       const { data, error } = await supabaseClient.from('progress').select('stars').eq('user_id', userId);
       if (error) throw new Error(error.message);
       const total = (data || []).reduce((acc, curr) => acc + (curr.stars || 0), 0);
@@ -66,7 +67,8 @@ async function query(text, params = []) {
 
     // 5. SELECT * FROM users WHERE id = $1
     if (lowerText.includes('from users') && lowerText.includes('where id')) {
-      const id = params[0];
+      const rawId = params[0];
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', id);
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
@@ -95,13 +97,15 @@ async function query(text, params = []) {
 
     // 8. SELECT * FROM levels WHERE order_number = $1 OR id = $1
     if (lowerText.includes('from levels') && lowerText.includes('order_number')) {
-      const orderNum = params[0];
+      const rawOrder = params[0];
+      const orderNum = isNaN(Number(rawOrder)) ? rawOrder : Number(rawOrder);
       const { data, error } = await supabaseClient.from('levels').select('*').eq('order_number', orderNum);
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
     }
     if (lowerText.includes('from levels') && lowerText.includes('where id')) {
-      const levelId = params[0];
+      const rawId = params[0];
+      const levelId = isNaN(Number(rawId)) ? rawId : Number(rawId);
       const { data, error } = await supabaseClient.from('levels').select('*').eq('id', levelId);
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
@@ -109,7 +113,8 @@ async function query(text, params = []) {
 
     // 9. SELECT * FROM questions WHERE level_id = $1
     if (lowerText.includes('from questions') && lowerText.includes('level_id')) {
-      const levelId = params[0];
+      const rawId = params[0];
+      const levelId = isNaN(Number(rawId)) ? rawId : Number(rawId);
       const { data, error } = await supabaseClient.from('questions').select('*').eq('level_id', levelId).order('id', { ascending: true });
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
@@ -117,8 +122,10 @@ async function query(text, params = []) {
 
     // 10. SELECT * FROM progress WHERE user_id = $1 AND level_id = $2
     if (lowerText.includes('from progress') && lowerText.includes('user_id') && lowerText.includes('level_id')) {
-      const userId = params[0];
-      const levelId = params[1];
+      const rawUserId = params[0];
+      const rawLevelId = params[1];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
+      const levelId = isNaN(Number(rawLevelId)) ? rawLevelId : Number(rawLevelId);
       const { data, error } = await supabaseClient.from('progress').select('*').eq('user_id', userId).eq('level_id', levelId);
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
@@ -126,7 +133,8 @@ async function query(text, params = []) {
 
     // 11. SELECT p.*, l.title... FROM progress p JOIN levels l ... WHERE p.user_id = $1
     if (lowerText.includes('from progress') && lowerText.includes('user_id')) {
-      const userId = params[0];
+      const rawUserId = params[0];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
       const { data: progressData, error: progErr } = await supabaseClient.from('progress').select('*').eq('user_id', userId);
       if (progErr) throw new Error(progErr.message);
 
@@ -152,7 +160,8 @@ async function query(text, params = []) {
     // 12. UPDATE users SET current_level = $1 WHERE id = $2
     if (lowerText.includes('set current_level')) {
       const nextLevel = params[0];
-      const userId = params[1];
+      const rawUserId = params[1];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
       const { data, error } = await supabaseClient
         .from('users')
         .update({ current_level: nextLevel })
@@ -165,7 +174,8 @@ async function query(text, params = []) {
     // 13. UPDATE users SET total_points = total_points + $1 WHERE id = $2
     if (lowerText.includes('set total_points')) {
       const pointGain = params[0];
-      const userId = params[1];
+      const rawUserId = params[1];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
       const { data: user } = await supabaseClient.from('users').select('total_points').eq('id', userId).single();
       const currentPts = user?.total_points || 0;
       const { data, error } = await supabaseClient
@@ -182,8 +192,10 @@ async function query(text, params = []) {
       const newStars = params[0];
       const newScore = params[1];
       const newCompleted = Boolean(params[2]);
-      const userId = params[3];
-      const levelId = params[4];
+      const rawUserId = params[3];
+      const rawLevelId = params[4];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
+      const levelId = isNaN(Number(rawLevelId)) ? rawLevelId : Number(rawLevelId);
       const { data, error } = await supabaseClient
         .from('progress')
         .update({ stars: newStars, score: newScore, completed: newCompleted })
@@ -196,8 +208,10 @@ async function query(text, params = []) {
 
     // 15. INSERT INTO progress (user_id, level_id, stars, score, completed)
     if (lowerText.includes('insert into progress')) {
-      const userId = params[0];
-      const levelId = params[1];
+      const rawUserId = params[0];
+      const rawLevelId = params[1];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
+      const levelId = isNaN(Number(rawLevelId)) ? rawLevelId : Number(rawLevelId);
       const stars = params[2];
       const score = params[3];
       const completed = Boolean(params[4]);

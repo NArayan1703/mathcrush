@@ -23,40 +23,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchCurrentUser = async () => {
     try {
-      if (!token) {
+      const storedToken = localStorage.getItem('math_crush_token');
+      if (!storedToken) {
         setLoading(false);
         return;
       }
       const response = await api.get('/auth/me');
-      setUser(response.data.user);
-    } catch (err) {
+      if (response.data && response.data.user) {
+        setUser(response.data.user);
+      }
+    } catch (err: any) {
       console.error('Failed to load user session:', err);
-      localStorage.removeItem('math_crush_token');
-      setToken(null);
-      setUser(null);
+      // Only purge token if backend explicitly rejected with 401 Unauthorized or 403 Forbidden
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        localStorage.removeItem('math_crush_token');
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCurrentUser();
+    if (token && !user) {
+      fetchCurrentUser();
+    } else {
+      setLoading(false);
+    }
   }, [token]);
 
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password });
     const { token: authToken, user: userData } = res.data;
     localStorage.setItem('math_crush_token', authToken);
-    setToken(authToken);
     setUser(userData);
+    setToken(authToken);
   };
 
   const register = async (name: string, email: string, password: string) => {
     const res = await api.post('/auth/register', { name, email, password });
     const { token: authToken, user: userData } = res.data;
     localStorage.setItem('math_crush_token', authToken);
-    setToken(authToken);
     setUser(userData);
+    setToken(authToken);
   };
 
   const logout = () => {
