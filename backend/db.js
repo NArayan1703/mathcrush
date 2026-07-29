@@ -21,18 +21,8 @@ async function query(text, params = []) {
       return { rows: [{ count: count || 0 }], rowCount: 1 };
     }
 
-    // 2. SELECT COALESCE(SUM(stars), 0) as total_stars FROM progress WHERE user_id = $1
-    if (lowerText.includes('sum(stars)') || lowerText.includes('total_stars')) {
-      const rawUserId = params[0];
-      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
-      const { data, error } = await supabaseClient.from('progress').select('stars').eq('user_id', userId);
-      if (error) throw new Error(error.message);
-      const total = (data || []).reduce((acc, curr) => acc + (curr.stars || 0), 0);
-      return { rows: [{ total_stars: total }], rowCount: 1 };
-    }
-
-    // 3. Leaderboard query
-    if (lowerText.includes('from users') && (lowerText.includes('progress') || lowerText.includes('join'))) {
+    // 2. Leaderboard query (matches queries joining users & progress for rankings)
+    if (lowerText.includes('from users') && (lowerText.includes('progress') || lowerText.includes('group by') || lowerText.includes('left join'))) {
       const { data: users, error: userErr } = await supabaseClient
         .from('users')
         .select('id, name, total_points, current_level')
@@ -55,6 +45,16 @@ async function query(text, params = []) {
       })).sort((a, b) => b.total_points - a.total_points || b.total_stars - a.total_stars);
 
       return { rows, rowCount: rows.length };
+    }
+
+    // 3. User total_stars query: SELECT COALESCE(SUM(stars), 0) as total_stars FROM progress WHERE user_id = $1
+    if ((lowerText.includes('sum(stars)') || lowerText.includes('total_stars')) && lowerText.includes('from progress') && params.length > 0) {
+      const rawUserId = params[0];
+      const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
+      const { data, error } = await supabaseClient.from('progress').select('stars').eq('user_id', userId);
+      if (error) throw new Error(error.message);
+      const total = (data || []).reduce((acc, curr) => acc + (curr.stars || 0), 0);
+      return { rows: [{ total_stars: total }], rowCount: 1 };
     }
 
     // 4. SELECT * FROM users WHERE email = $1
