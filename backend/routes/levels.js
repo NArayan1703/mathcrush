@@ -92,9 +92,18 @@ router.get('/:id/questions', authenticateToken, async (req, res) => {
       [levelId]
     );
 
+    // Deduplicate questions by question_text to guarantee exactly 10 unique questions per level
+    const uniqueQuestionsMap = new Map();
+    (questionsRes.rows || []).forEach(q => {
+      if (!uniqueQuestionsMap.has(q.question_text)) {
+        uniqueQuestionsMap.set(q.question_text, q);
+      }
+    });
+    const distinctQuestions = Array.from(uniqueQuestionsMap.values()).slice(0, 10);
+
     return res.json({
       level,
-      questions: questionsRes.rows
+      questions: distinctQuestions
     });
   } catch (err) {
     console.error('Fetch Questions Error:', err);
