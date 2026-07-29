@@ -88,14 +88,16 @@ async function query(text, params = []) {
       return { rows: [data], rowCount: 1 };
     }
 
-    // 7. SELECT * FROM levels WHERE order_number = $1 OR id = $1
-    if (lowerText.includes('from levels') && lowerText.includes('order_number')) {
+    // 7. SELECT * FROM levels WHERE order_number = $1
+    if (lowerText.includes('from levels') && lowerText.includes('where') && lowerText.includes('order_number')) {
       const rawOrder = params[0];
       const orderNum = isNaN(Number(rawOrder)) ? rawOrder : Number(rawOrder);
       const { data, error } = await supabaseClient.from('levels').select('*').eq('order_number', orderNum);
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
     }
+
+    // 8. SELECT * FROM levels WHERE id = $1
     if (lowerText.includes('from levels') && lowerText.includes('where id')) {
       const rawId = params[0];
       const levelId = isNaN(Number(rawId)) ? rawId : Number(rawId);
@@ -104,14 +106,14 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 8. SELECT * FROM levels ORDER BY order_number ASC
+    // 9. SELECT * FROM levels (all levels)
     if (lowerText.includes('from levels')) {
       const { data, error } = await supabaseClient.from('levels').select('*').order('order_number', { ascending: true });
       if (error) throw new Error(error.message);
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 9. SELECT * FROM questions WHERE level_id = $1
+    // 10. SELECT * FROM questions WHERE level_id = $1
     if (lowerText.includes('from questions') && lowerText.includes('level_id')) {
       const rawId = params[0];
       const levelId = isNaN(Number(rawId)) ? rawId : Number(rawId);
@@ -120,7 +122,7 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 10. SELECT * FROM progress WHERE user_id = $1 AND level_id = $2
+    // 11. SELECT * FROM progress WHERE user_id = $1 AND level_id = $2
     if (lowerText.includes('from progress') && lowerText.includes('where') && params.length >= 2) {
       const rawUserId = params[0];
       const rawLevelId = params[1];
@@ -131,7 +133,7 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 11. SELECT * FROM progress WHERE user_id = $1
+    // 12. SELECT * FROM progress WHERE user_id = $1
     if (lowerText.includes('from progress') && lowerText.includes('where') && params.length === 1) {
       const rawUserId = params[0];
       const userId = isNaN(Number(rawUserId)) ? rawUserId : Number(rawUserId);
@@ -141,7 +143,7 @@ async function query(text, params = []) {
       return { rows: progressData || [], rowCount: (progressData || []).length };
     }
 
-    // 12. UPDATE users SET current_level = $1 WHERE id = $2
+    // 13. UPDATE users SET current_level = $1 WHERE id = $2
     if (lowerText.includes('set current_level')) {
       const nextLevel = params[0];
       const rawUserId = params[1];
@@ -155,7 +157,7 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 13. UPDATE users SET total_points = total_points + $1 WHERE id = $2
+    // 14. UPDATE users SET total_points = total_points + $1 WHERE id = $2
     if (lowerText.includes('set total_points')) {
       const pointGain = params[0];
       const rawUserId = params[1];
@@ -171,7 +173,7 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 14. UPDATE progress SET stars = $1, score = $2, completed = $3... WHERE user_id = $4 AND level_id = $5
+    // 15. UPDATE progress SET stars = $1, score = $2, completed = $3... WHERE user_id = $4 AND level_id = $5
     if (lowerText.includes('update progress')) {
       const newStars = params[0];
       const newScore = params[1];
@@ -190,7 +192,7 @@ async function query(text, params = []) {
       return { rows: data || [], rowCount: (data || []).length };
     }
 
-    // 15. INSERT INTO progress (user_id, level_id, stars, score, completed)
+    // 16. INSERT INTO progress (user_id, level_id, stars, score, completed)
     if (lowerText.includes('insert into progress')) {
       const rawUserId = params[0];
       const rawLevelId = params[1];
