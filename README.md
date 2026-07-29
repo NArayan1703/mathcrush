@@ -1,26 +1,12 @@
-# 🍬 Math Crush — Gamified Middle School Math Learning Platform
+# 🍬 Math Crush - Gamified Middle School Math Learning Platform
 
-> **Hackathon Edition** — Turn boring math homework into a Candy Crush style game! Earn stars, unlock levels, and top the leaderboard while mastering Grade 6–8 math curriculum.
-
----
-
-## 🌟 Overview
-
-**Math Crush** is an interactive, gamified learning platform built for middle school students. Inspired by Candy Crush's level progression system, students progress through a winding map of math challenges. Each level contains multiple choice math questions designed around middle school curriculum topics (Fractions, Decimals, Percentages, Ratios, Algebra, and Geometry).
-
-### Key Highlights:
-- 🍬 **Candy Crush Level Map**: Visual winding path with floating islands, 3D candy buttons, and player location markers.
-- ⭐ **3-Star Rating System**: Earn 1, 2, or 3 stars based on score accuracy (50%, 70%, 90% thresholds).
-- 🏆 **Live Podium Leaderboard**: Compete with classmates for top points and stars.
-- 🎮 **Tactile Gameplay Arena**: Instant answer feedback with green glows, red shake animations, step-by-step math explanations, and confetti explosions.
-- 🔐 **JWT Authentication**: Student registration and login with local session state.
-- 🛡️ **Privacy & COPPA Compliant**: Dedicated privacy policy modal for student data safety.
+Math Crush is a Candy Crush inspired gamified math learning platform designed for middle-school students (Grades 6–8). Students navigate a winding level map, answer interactive math questions, earn 3-star ratings, gain points, and climb the live Hall of Fame leaderboard!
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Layer | Technology |
+| Category | Technology |
 | :--- | :--- |
 | **Frontend Core** | React 19 + Vite 8 + TypeScript |
 | **Styling** | Tailwind CSS v4 + Custom 3D Game Design Tokens |
@@ -28,7 +14,7 @@
 | **Routing & Icons** | React Router v7 + Lucide Icons |
 | **Backend API** | Node.js + Express.js |
 | **Auth & Security** | JWT (`jsonwebtoken`) + Password Hashing (`bcryptjs`) |
-| **Database** | PostgreSQL (DDL Schema) + Embedded SQLite Fallback (`better-sqlite3`) |
+| **Database** | Supabase PostgreSQL + HTTPS REST SDK (`@supabase/supabase-js`) |
 
 ---
 
@@ -36,13 +22,13 @@
 
 ```
 gamingmaths/
-├── package.json               # Root monorepo script configuration (concurrent runner)
+├── package.json               # Root monorepo script configuration
 ├── README.md                  # Comprehensive documentation
 │
 ├── backend/                   # Express.js REST API Server
 │   ├── package.json
-│   ├── server.js              # Entry point & API mounts (Port 5000)
-│   ├── db.js                  # Dual DB adapter (PostgreSQL + SQLite fallback)
+│   ├── server.js              # Entry point & API mounts
+│   ├── db.js                  # Supabase PostgreSQL & REST SDK database manager
 │   ├── schema.sql             # PostgreSQL DDL table definitions
 │   ├── seedData.js            # Seed data (5 Levels, 50 Math Questions)
 │   ├── middleware/
@@ -53,83 +39,63 @@ gamingmaths/
 │       ├── progress.js        # POST /progress/complete, GET /progress
 │       └── leaderboard.js     # GET /leaderboard
 │
-└── frontend/                  # React + Vite TypeScript App
+└── frontend/                  # React + Vite Single Page Application
     ├── package.json
-    ├── vite.config.ts         # Vite server, Tailwind plugin & API proxy config
+    ├── vercel.json            # Vercel Vite Frontend configuration
     ├── index.html
+    ├── public/
+    │   ├── favicon.png        # 3D Candy gem favicon
+    │   └── hero-banner.jpg    # 3D Candy world hero artwork
     └── src/
-        ├── index.css          # Candy design system, 3D buttons & glow effects
-        ├── App.tsx            # Protected routes & App layout
+        ├── App.tsx            # Routes setup & ProtectedRoute guards
+        ├── index.css          # Tailwind CSS + Candy Crush 3D design system
         ├── context/
-        │   └── AuthContext.tsx# User session & points state management
+        │   └── AuthContext.tsx # Student session state & live points tracking
         ├── services/
-        │   └── api.ts         # Axios client with bearer token interceptor
+        │   └── api.ts         # Axios client instance with Bearer token interceptor
+        ├── types/
+        │   └── index.ts       # TypeScript interfaces (User, Level, Question, Progress)
         ├── components/
-        │   ├── Navbar.tsx     # Header bar with live points 💎, stars ⭐, level 🍬
-        │   └── Footer.tsx     # App footer with interactive Privacy Policy Modal
+        │   ├── Navbar.tsx     # Navigation bar with live points, stars & mobile ribbon
+        │   └── Footer.tsx     # Footer featuring interactive Privacy Policy Modal
         └── pages/
-            ├── LandingPage.tsx   # Hero section, feature grid & login/register modal
-            ├── DashboardPage.tsx # Student stats, progress bar & math topics
-            ├── LevelMapPage.tsx # Winding level map with bouncy candy nodes
-            ├── GameplayPage.tsx # 10 multiple-choice questions & feedback
-            └── LeaderboardPage.tsx# Top 3 podium cards & full student rank table
+            ├── LandingPage.tsx   # Hero section & Login/Register Modals
+            ├── DashboardPage.tsx # Student stats overview & topic cards
+            ├── LevelMapPage.tsx  # Candy Crush level map path
+            ├── GameplayPage.tsx  # Math question arena with confetti & feedback
+            └── LeaderboardPage.tsx# Top 3 podium cards & student rank table
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## ⚡ Quick Start Guide
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher (v24 recommended)
-- **npm**: v10.0.0 or higher
+- Node.js (v18+)
+- npm (v9+)
 
-### Installation & Setup
+### Installation
 
-1. **Clone the repository & install root dependencies**:
+1. **Clone & Install Dependencies**:
    ```bash
    git clone https://github.com/NArayan1703/mathcrush.git
-   cd gamingmaths
-   npm install
+   cd mathcrush
+   npm run install:all
    ```
 
-2. **Install subproject dependencies** (Backend & Frontend):
-   ```bash
-   npm --prefix backend install
-   npm --prefix frontend install
-   ```
-
-3. **Launch Both Servers Concurrently** (Single Command):
+2. **Start Development Servers**:
    ```bash
    npm run dev
    ```
-
-4. Open your browser and navigate to:
-   - **Frontend Application**: `http://localhost:3000`
-   - **Backend API Health Check**: `http://localhost:5000/api/health`
+   - **Frontend**: Runs locally at `http://localhost:3000`
+   - **Backend**: Runs locally at `http://localhost:5000`
 
 ---
 
-## 🎮 Math Content & Curriculum Coverage
-
-The demo includes **5 Levels** containing **50 curated middle school math questions**:
-
-| Level | Topic | Grade Level | Questions |
-| :---: | :--- | :---: | :---: |
-| **Level 1** | Fraction Fundamentals 🍕 | Grade 6 | 10 |
-| **Level 2** | Decimal Discoveries 🪙 | Grade 6 | 10 |
-| **Level 3** | Percentage Power 📊 | Grade 7 | 10 |
-| **Level 4** | Ratio Realms ⚖️ | Grade 7 | 10 |
-| **Level 5** | Algebra & Geometry Quest 📐 | Grade 8 | 10 |
-
----
-
-## 🗄️ Database Schema & API Reference
-
-### Database DDL (`backend/schema.sql`)
+## 🗄️ Database Schema (PostgreSQL)
 
 ```sql
--- Users Table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -139,8 +105,7 @@ CREATE TABLE users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Levels Table
-CREATE TABLE levels (
+CREATE TABLE IF NOT EXISTS levels (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     topic VARCHAR(255) NOT NULL,
@@ -148,8 +113,7 @@ CREATE TABLE levels (
     order_number INT UNIQUE NOT NULL
 );
 
--- Questions Table
-CREATE TABLE questions (
+CREATE TABLE IF NOT EXISTS questions (
     id SERIAL PRIMARY KEY,
     level_id INT REFERENCES levels(id) ON DELETE CASCADE,
     question_text TEXT NOT NULL,
@@ -161,8 +125,7 @@ CREATE TABLE questions (
     explanation TEXT
 );
 
--- Progress Table
-CREATE TABLE progress (
+CREATE TABLE IF NOT EXISTS progress (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
     level_id INT REFERENCES levels(id) ON DELETE CASCADE,
@@ -174,25 +137,13 @@ CREATE TABLE progress (
 );
 ```
 
-### REST API Endpoints
-
-#### Authentication
-- `POST /api/auth/register` — Register a new student account (`name`, `email`, `password`)
-- `POST /api/auth/login` — Sign in to an existing account (`email`, `password`)
-- `GET /api/auth/me` — Fetch logged-in user profile & total stars
-
-#### Levels & Gameplay
-- `GET /api/levels` — Fetch all levels with user progress & unlock statuses
-- `GET /api/levels/:id` — Fetch single level details
-- `GET /api/levels/:id/questions` — Fetch 10 questions for a specific level
-
-#### Progress & Leaderboard
-- `POST /api/progress/complete` — Record level completion score, calculate stars & unlock next level
-- `GET /api/progress` — Fetch completed levels for current user
-- `GET /api/leaderboard` — Fetch student rankings sorted by total points & stars
-
 ---
 
-## 📜 License
+## 🏆 Star Rating Rules
 
-This project is licensed under the **ISC License**. 
+| Accuracy Score | Stars Awarded | Status |
+| :--- | :---: | :--- |
+| **100%** | ⭐⭐⭐ **3 Stars** | Perfect Score! |
+| **80% or over** | ⭐⭐ **2 Stars** | Great Job! |
+| **60% or over** | ⭐ **1 Star** | Level Passed (Unlocks Next Level) |
+| **Under 60%** | ❌ **0 Stars** | Level Locked |
